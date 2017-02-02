@@ -16,6 +16,7 @@ import water.fvec.Frame;
 import water.persist.Persist;
 import water.util.FileUtils;
 import water.util.JCodeGen;
+import water.util.PojoUtils;
 
 public class ModelsHandler<I extends ModelsHandler.Models, S extends SchemaV3<I,S>>
     extends Handler {
@@ -248,6 +249,23 @@ public class ModelsHandler<I extends ModelsHandler.Models, S extends SchemaV3<I,
       OutputStream os = p.create(targetUri.toString(),mexport.force);
       ModelMojoWriter mojo = model.getMojo();
       mojo.writeTo(os);
+      // Send back
+      mexport.dir = "file".equals(targetUri.getScheme()) ? new File(targetUri).getCanonicalPath() : targetUri.toString();
+    } catch (IOException e) {
+      throw new H2OIllegalArgumentException("dir", "exportModel", e);
+    }
+    return mexport;
+  }
+
+  public ModelExportV3 exportModelDetails(int version, ModelExportV3 mexport){
+    Model model = getFromDKV("model_id", mexport.model_id.key());
+    try {
+      URI targetUri = FileUtils.getURI(mexport.dir); // Really file, not dir
+      Persist p = H2O.getPM().getPersistForURI(targetUri);
+      //Output model details to JSON
+      OutputStream os = p.create(targetUri.toString(),mexport.force);
+      os.write(model.writeJSON(new AutoBuffer()).buf());
+      OutputStream os2 = p.create(targetUri.toString(),mexport.force);
       // Send back
       mexport.dir = "file".equals(targetUri.getScheme()) ? new File(targetUri).getCanonicalPath() : targetUri.toString();
     } catch (IOException e) {
